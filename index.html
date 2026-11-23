@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The body as an instrument</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --felt:    #dce3d6;   /* sage felt background */
+    --ink:     #2e1a33;   /* deep plum text */
+    --thread:  #c8385f;   /* pink-red thread */
+    --muted:   #5d4a60;   /* softer plum for body text */
+    --patch:   #e8ede3;   /* lighter patch behind the steps */
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --felt:   #24152a;
+      --ink:    #f3e9ee;
+      --thread: #f07fa0;
+      --muted:  #c9b6c8;
+      --patch:  #2f1d36;
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--felt);
+    color: var(--ink);
+    font-family: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    font-optical-sizing: auto;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: clamp(1.25rem, 3vw, 3rem) clamp(1.25rem, 5vw, 5rem);
+    overflow-x: hidden;
+  }
+
+  /* The stitched sound wave across the top */
+  .wave {
+    width: 100%;
+    height: clamp(60px, 11vh, 120px);
+    display: block;
+    overflow: visible;
+  }
+  .wave path {
+    fill: none;
+    stroke: var(--thread);
+    stroke-width: 3.5;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    stroke-dasharray: 14 10;          /* a running stitch */
+    animation: sew 3s linear infinite;
+  }
+  .wave path.echo {
+    stroke-width: 2;
+    opacity: 0.45;
+    animation-duration: 4.5s;
+    animation-direction: reverse;
+  }
+  @keyframes sew { to { stroke-dashoffset: -48; } }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: clamp(2rem, 6vw, 6rem);
+    align-items: center;
+    padding: clamp(1rem, 3vh, 2.5rem) 0;
+  }
+
+  h1 {
+    font-size: clamp(3rem, 7.5vw, 7rem);
+    font-weight: 750;
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 0.4em;
+  }
+
+  .concept {
+    font-size: clamp(1.15rem, 1.7vw, 1.5rem);
+    color: var(--muted);
+    max-width: 32ch;
+    line-height: 1.55;
+  }
+  .concept + .concept { margin-top: 0.8em; }
+
+  /* The steps, sewn together by a dashed thread */
+  ol {
+    list-style: none;
+    padding: clamp(1.5rem, 3vw, 2.5rem);
+    background: var(--patch);
+    border-radius: 28px;
+    outline: 2.5px dashed var(--thread);
+    outline-offset: -12px;           /* stitching just inside the patch edge */
+    display: grid;
+    gap: clamp(1.25rem, 3vh, 2rem);
+    position: relative;
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 1.1rem;
+    align-items: start;
+    position: relative;
+  }
+
+  /* Thread running from one step's button down to the next */
+  li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: calc(clamp(2.6rem, 4vw, 3.4rem) / 2 - 1px);
+    top: clamp(2.6rem, 4vw, 3.4rem);
+    bottom: calc(-1 * clamp(1.25rem, 3vh, 2rem));
+    border-left: 2.5px dashed var(--thread);
+  }
+
+  /* Step numbers look like sewn-on buttons */
+  .button {
+    width: clamp(2.6rem, 4vw, 3.4rem);
+    height: clamp(2.6rem, 4vw, 3.4rem);
+    border-radius: 50%;
+    border: 2.5px dashed var(--thread);
+    display: grid;
+    place-items: center;
+    font-size: clamp(1.2rem, 1.8vw, 1.6rem);
+    font-weight: 700;
+    color: var(--thread);
+    background: var(--felt);
+  }
+
+  h2 {
+    font-size: clamp(1.45rem, 2.4vw, 2.1rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin-top: 0.15em;
+  }
+  li p {
+    font-size: clamp(1rem, 1.35vw, 1.2rem);
+    color: var(--muted);
+    margin-top: 0.3em;
+    max-width: 38ch;
+  }
+
+  footer {
+    font-size: clamp(0.95rem, 1.2vw, 1.1rem);
+    color: var(--muted);
+    padding-top: 1rem;
+    border-top: 2px dashed color-mix(in srgb, var(--thread) 45%, transparent);
+  }
+
+  @media (max-width: 820px) {
+    main { grid-template-columns: 1fr; }
+    .concept { max-width: 40ch; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wave path { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+  <svg class="wave" viewBox="0 0 1200 120" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 60 C 60 10, 110 10, 160 60 S 260 110, 320 60 S 400 0, 470 60 S 560 115, 620 60
+             S 690 30, 750 60 S 830 95, 890 60 S 980 5, 1040 60 S 1130 100, 1200 60"/>
+    <path class="echo" d="M0 60 C 80 35, 130 35, 200 60 S 300 90, 380 60 S 460 25, 540 60 S 640 95, 720 60
+             S 800 30, 880 60 S 980 92, 1060 60 S 1150 40, 1200 60"/>
+  </svg>
+
+  <main>
+    <section>
+      <h1>The body as an instrument</h1>
+      <p class="concept">
+        Small motion sensors are sewn into a glove. As you move, they feel every turn,
+        swing and flick of your hand and turn it into music.
+      </p>
+      <p class="concept">
+        There are no right notes and no wrong moves. Your body is the instrument;
+        all you have to do is listen to what it plays.
+      </p>
+    </section>
+
+    <ol>
+      <li>
+        <span class="button" aria-hidden="true">1</span>
+        <div>
+          <h2>Wear the glove</h2>
+          <p>Slip it on so the sensor rests on the back of your hand.</p>
+        </div>
+      </li>
+      <li>
+        <span class="button" aria-hidden="true">2</span>
+        <div>
+          <h2>Connect the power</h2>
+          <p>Plug the glove into its battery, then hold your hand still for a couple of seconds while it wakes up.</p>
+        </div>
+      </li>
+      <li>
+        <span class="button" aria-hidden="true">3</span>
+        <div>
+          <h2>Move your body and explore</h2>
+          <p>Flick your hand and a note rings out. With two gloves, flick both at the same moment and they play a chord together.</p>
+        </div>
+      </li>
+    </ol>
+  </main>
+
+  <footer>
+    A very ongoing project, sewn together this morning by Aakanksha Agrawal.
+  </footer>
+
+</body>
+</html>
