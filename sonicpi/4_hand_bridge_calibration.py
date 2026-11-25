@@ -6,6 +6,7 @@
 #   /flick        <sensor_id> <strength>
 #   /displacement <sensor_id> <x_m> <y_m> <z_m>
 #   /az           <sensor_id> <z_acceleration_minus_calibration_gravity_m_s2>
+#   /accel_xz     <sensor_id> <x_accel_m_s2> <z_accel_m_s2>
 #
 # Each sensor calibrates when it first appears. Hold it still in its starting
 # pose for about two seconds; that pose is displacement (0, 0, 0).
@@ -134,6 +135,7 @@ while True:
     # Keep the rapid Z acceleration sign change intact for gesture detection.
     if now - s["last_az_send"] >= AZ_SEND_INTERVAL:
         sonic_pi.send_message("/az", [sensor, acceleration[Z_AXIS]])
+        sonic_pi.send_message("/accel_xz", [sensor, acceleration[X_AXIS], acceleration[Z_AXIS]])
         s["last_az_send"] = now
 
     if s["ready_for_flick"] and s["energy"] > FLICK_ON:
