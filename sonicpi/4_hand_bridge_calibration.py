@@ -5,13 +5,16 @@
 #   /move         <sensor_id> <energy>
 #   /flick        <sensor_id> <strength>
 #   /displacement <sensor_id> <x_m> <y_m> <z_m>
-#   /az           <sensor_id> <z_acceleration_minus_calibration_gravity_m_s2>
-#   /accel_xz     <sensor_id> <x_accel_m_s2> <z_accel_m_s2>
+#   /motion_xz    <sensor_id> <x_accel_m_s2> <z_accel_m_s2>
+#   /didgeridoo_motion_xz <sensor_id> <x_accel_m_s2> <z_accel_m_s2> (ID 3 copy)
+#   /handpan_motion_xz <sensor_id> <x_accel_m_s2> <z_accel_m_s2> (ID 4 copy)
+#   /drum_n_didge_motion_xz <sensor_id> <x_accel_m_s2> <z_accel_m_s2> (IDs 3/4 copy)
 #
 # Each sensor calibrates when it first appears. Hold it still in its starting
 # pose for about two seconds; that pose is displacement (0, 0, 0).
 
 import math
+import sys
 import time
 
 import serial
@@ -25,7 +28,8 @@ FLICK_ON = 0.5
 FLICK_OFF = 0.2
 CALIBRATION_SAMPLES = 100  # ~2 seconds at 50 Hz
 SEND_INTERVAL = 0.05
-AZ_SEND_INTERVAL = 0.02  # preserve short acceleration reversals at ~50 Hz
+MOTION_SEND_INTERVAL = 0.02  # preserve short motion changes at ~50 Hz
+SERIAL_BAUD = 230400
 
 # Map displacement into the normalized controls used by bass_glove.rb.
 # Adjust axes/signs to match how each MPU is mounted. Values saturate at +/-1.
@@ -42,23 +46,67 @@ STATIONARY_ACCEL = 0.35  # m/s^2 after removing calibrated gravity vector
 STATIONARY_GYRO = 0.12   # rad/s after removing gyro bias
 
 sonic_pi = SimpleUDPClient("127.0.0.1", 4560)
-receiver = serial.Serial(PORT, 115200, timeout=1)
+receiver = serial.Serial(PORT, SERIAL_BAUD, timeout=1)
 
 calibration = {}
 state = {}
-last_print = 0.0
+DISPLAY_IDS = (1, 2, 3, 4)
+DISPLAY_INTERVAL = 0.1
+dashboard_drawn = False
+last_dashboard_update = 0.0
+
+
+def render_dashboard():
+    """Refresh one fixed row per sensor instead of scrolling meter updates."""
+    global dashboard_drawn, last_dashboard_update
+    now = time.monotonic()
+    if now - last_dashboard_update < DISPLAY_INTERVAL:
+        return
+    last_dashboard_update = now
+
+    rows = []
+    for client_id in DISPLAY_IDS:
+        client = state.get(client_id)
+        if client is None:
+            rows.append(f"[{client_id}] waiting for sensor | flicks 0")
+        elif not client["calibrated"]:
+            rows.append(
+                f"[{client_id}] calibrating {len(calibration[client_id]):3d}/{CALIBRATION_SAMPLES} "
+                f"| flicks {client['flicks']}"
+            )
+        else:
+            energy = client["energy"]
+            bar = "#" * int(energy * 18)
+            pos = client["position"]
+            rows.append(
+                f"[{client_id}] {energy:4.2f} |{bar:<18}| "
+                f"d=({pos[0]:+.2f},{pos[1]:+.2f},{pos[2]:+.2f})m "
+                f"flicks {client['flicks']}"
+            )
+
+    if sys.stdout.isatty():
+        if not dashboard_drawn:
+            print("\nSensor status (refreshes in place):")
+            sys.stdout.write("\n".join(rows) + "\n")
+            dashboard_drawn = True
+        else:
+            sys.stdout.write(f"\x1b[{len(rows)}A")
+            for row in rows:
+                sys.stdout.write("\r\x1b[2K" + row + "\n")
+        sys.stdout.flush()
+    else:
+        # Keep redirected/non-interactive output to a single refreshed line.
+        sys.stdout.write("\r" + " | ".join(rows))
+        sys.stdout.flush()
 
 print("Four-sensor bridge running (IDs 1-4). Move! Ctrl+C to stop.\n")
-print(f"Reading serial from {PORT} at 115200; close Arduino Serial Monitor first.")
-ignored_lines = 0
+print(f"Reading serial from {PORT} at {SERIAL_BAUD}; close Arduino Serial Monitor first.")
+render_dashboard()
 
 while True:
     line = receiver.readline().decode(errors="ignore").strip()
     parts = line.split(",")
     if len(parts) != 8:
-        if line and ignored_lines < 5:
-            print(f"\nIgnoring non-sensor serial line: {line!r}")
-            ignored_lines += 1
         continue
     try:
         sensor = int(parts[0])
@@ -67,23 +115,20 @@ while True:
     except ValueError:
         continue
     if sensor not in (1, 2, 3, 4):
-        if ignored_lines < 5:
-            print(f"\nIgnoring sensor ID {sensor}; expected 1-4")
-            ignored_lines += 1
         continue
 
     now = time.monotonic()
     if sensor not in state:
         state[sensor] = {
             "energy": 0.0, "ready_for_flick": True, "last_send": 0.0,
-            "last_az_send": 0.0,
+            "last_motion_send": 0.0,
             "flicks": 0, "gravity": 0.0, "gyro_offset": [0.0] * 3,
             "gravity_vector": [0.0] * 3, "position": [0.0] * 3,
+            "calibrated": False,
             "velocity": [0.0] * 3, "last_time": None,
             "last_print_energy": 0.0,
         }
         calibration[sensor] = []
-        print(f"\nSensor {sensor} connected - hold it still in its zero pose for ~2 seconds...")
 
     readings = calibration[sensor]
     if len(readings) < CALIBRATION_SAMPLES:
@@ -93,7 +138,8 @@ while True:
             s["gravity"] = sum(math.sqrt(r[0]**2 + r[1]**2 + r[2]**2) for r in readings) / len(readings)
             s["gravity_vector"] = [sum(r[i] for r in readings) / len(readings) for i in range(3)]
             s["gyro_offset"] = [sum(r[i] for r in readings) / len(readings) for i in (3, 4, 5)]
-            print(f"\nSensor {sensor} calibrated (gravity {s['gravity']:.2f} m/s^2; displacement zeroed)")
+            s["calibrated"] = True
+        render_dashboard()
         continue
 
     s = state[sensor]
@@ -132,11 +178,19 @@ while True:
         sonic_pi.send_message("/x", [sensor, x])
         s["last_send"] = now
 
-    # Keep the rapid Z acceleration sign change intact for gesture detection.
-    if now - s["last_az_send"] >= AZ_SEND_INTERVAL:
-        sonic_pi.send_message("/az", [sensor, acceleration[Z_AXIS]])
-        sonic_pi.send_message("/accel_xz", [sensor, acceleration[X_AXIS], acceleration[Z_AXIS]])
-        s["last_az_send"] = now
+    # Send X/Z together, with the ID, as one synchronized motion frame.
+    if now - s["last_motion_send"] >= MOTION_SEND_INTERVAL:
+        motion_xz = [sensor, acceleration[X_AXIS], acceleration[Z_AXIS]]
+        sonic_pi.send_message("/motion_xz", motion_xz)
+        # Keep the instrument streams separate from the shared motion topic.
+        if sensor == 3:
+            sonic_pi.send_message("/didgeridoo_motion_xz", motion_xz)
+        if sensor == 4:
+            sonic_pi.send_message("/handpan_motion_xz", motion_xz)
+        if sensor in (3, 4):
+            # Retain the shared ID 3/4 feed for existing combined-script clients.
+            sonic_pi.send_message("/drum_n_didge_motion_xz", motion_xz)
+        s["last_motion_send"] = now
 
     if s["ready_for_flick"] and s["energy"] > FLICK_ON:
         s["flicks"] += 1
@@ -145,14 +199,4 @@ while True:
     elif not s["ready_for_flick"] and s["energy"] < FLICK_OFF:
         s["ready_for_flick"] = True
 
-    if now - last_print > 0.1:
-        last_print = now
-        meters = ""
-        for client_id in sorted(state):
-            client = state[client_id]
-            bar = "#" * int(client["energy"] * 20)
-            pos = client["position"]
-            meters += (f"  [{client_id}] {client['energy']:4.2f} |{bar:<20}| "
-                       f"d=({pos[0]:+.2f},{pos[1]:+.2f},{pos[2]:+.2f})m "
-                       f"flicks {client['flicks']:<3}")
-        print("\r" + meters, end="")
+    render_dashboard()
