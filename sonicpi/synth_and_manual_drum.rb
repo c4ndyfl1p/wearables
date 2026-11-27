@@ -1,6 +1,6 @@
-# synth_and_manual_drum.rb — persistent synth chord plus a hand-triggered
-# hangpan-style melody for sensor 4. A strong down-Z acceleration followed by
-# the opposite acceleration plays one note. The player chooses the rhythm.
+# synth_and_manual_drum.rb — hand-triggered hangpan-style melody for sensor 4.
+# A strong down-Z acceleration followed by the opposite acceleration plays
+# one note. The player chooses the rhythm.
 #
 # Requires 4_hand_bridge_calibration.py, which sends
 # /motion_xz <sensor_id> <x_accel_m_s2> <z_accel_m_s2>.
@@ -10,13 +10,7 @@ DOWN_ACCEL_THRESHOLD = 1.5 # m/s^2; CSV shows 20 down/up pairs at this threshold
 UP_ACCEL_THRESHOLD = 1.5   # m/s^2; opposite impulse confirms direction changed
 HANGPAN_LINE = (ring :d3, :a3, :fs3, :d4, :a3, :e4, :fs3, :a3)
 
-# Persistent synth mockup, matching synth_and_bass.rb and two_hand_music.rb.
 set :manual_drum_down_accel_seen, false
-with_fx :reverb, mix: 0.6 do
-  synth :hollow, note: :d4, sustain: 100000, amp: 0.42, pan: -0.35
-  synth :hollow, note: :a4, sustain: 100000, amp: 0.42, pan: 0.35
-  synth :pnoise, sustain: 100000, amp: 0.055, cutoff: 60
-end
 
 with_fx :reverb, mix: 0.72, room: 0.85 do
   live_loop :manual_hangpan do
