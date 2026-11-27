@@ -2,7 +2,8 @@
 # hangpan-style melody for sensor 4. A strong down-Z acceleration followed by
 # the opposite acceleration plays one note. The player chooses the rhythm.
 #
-# Requires the four-hand bridge to send /az <sensor_id> <dynamic_z_acceleration>.
+# Requires 4_hand_bridge_calibration.py, which sends
+# /motion_xz <sensor_id> <x_accel_m_s2> <z_accel_m_s2>.
 
 DRUM_ID = 4
 DOWN_ACCEL_THRESHOLD = 1.5 # m/s^2; CSV shows 20 down/up pairs at this threshold
@@ -20,7 +21,7 @@ end
 with_fx :reverb, mix: 0.72, room: 0.85 do
   live_loop :manual_hangpan do
     use_real_time
-    id, z_accel = sync "/osc*/az"
+    id, _x_accel, z_accel = sync "/osc*/motion_xz"
 
     if id == DRUM_ID
       down_accel_seen = get[:manual_drum_down_accel_seen] || false
